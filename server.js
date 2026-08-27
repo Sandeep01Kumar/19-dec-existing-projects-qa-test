@@ -13,16 +13,14 @@ app.disable('etag');
 app.get('/', (req, res) => {
   // res.send downgrades the response to a bodyless 304 whenever Express reports
   // the request as fresh, and a wildcard If-None-Match is reported fresh even
-  // with entity tags disabled. Dropping both validators leaves the freshness
-  // check on its unconditional-request path, so the full 200 is always sent.
+  // with entity tags disabled, so that validator is dropped. If-Modified-Since
+  // needs no guard: it is only ever fresh against a Last-Modified we never set.
   delete req.headers['if-none-match'];
-  delete req.headers['if-modified-since'];
   res.type('text/plain').send('Hello, World!\n');
 });
 
 app.get('/good-evening', (req, res) => {
   delete req.headers['if-none-match'];
-  delete req.headers['if-modified-since'];
   res.type('text/plain').send('Good evening');
 });
 
