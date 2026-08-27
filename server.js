@@ -26,7 +26,7 @@ app.get('/good-evening', (req, res) => {
 
 // Express 5 passes listen errors to this callback. Report the code alone,
 // never the Error whose stack would disclose local paths, and exit non-zero.
-app.listen(port, hostname, (error) => {
+const server = app.listen(port, hostname, (error) => {
   if (error) {
     const code = typeof error.code === 'string' ? error.code : 'UNKNOWN';
     console.error(`Server failed to bind ${hostname}:${port} (${code})`);
@@ -34,4 +34,19 @@ app.listen(port, hostname, (error) => {
     return;
   }
   console.log(`Server running at http://${hostname}:${port}/`);
+});
+
+// Node hands a CONNECT request to the server's 'connect' event instead of the
+// normal request pipeline, so the Express router never sees one and its
+// built-in 404 cannot answer it. With no listener attached Node simply
+// destroys the socket, leaving CONNECT with an empty close where every method
+// other than GET/HEAD/OPTIONS gets a 404, so write that 404 on the raw socket
+// here. The socket needs its own 'error' handler too: it carries no default
+// one, so a peer vanishing mid-write would raise an unhandled 'error' and take
+// the process down. Destroy it silently, leaving stdout and stderr untouched.
+server.on('connect', (req, socket) => {
+  socket.on('error', () => {
+    socket.destroy();
+  });
+  socket.end('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
 });
